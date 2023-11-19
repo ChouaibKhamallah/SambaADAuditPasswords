@@ -3,4 +3,4 @@ termcolor
 tabulate
 requests
 configparser
-pycrypto
+pycryptodome
