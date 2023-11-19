@@ -37,7 +37,7 @@ INSTALL NOTES
 apt-get install git python3-pip
 cd /tmp
 git clone https://github.com/ChouaibKhamallah/SambaADAuditPasswords.git
-mv SambaADAuditPasswords /opt/haveibeenpwnd_samba
+mv SambaADAuditPasswords /opt/SambaADAuditPasswords
 pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
 ```
 
