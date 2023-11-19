@@ -35,6 +35,7 @@ pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
 ```
 
 - Configure ini file if needed
+  - By default the script run in dry_run mode and audit all domain directories
 
 ```
 /opt/SambaADAuditPasswords/conf.ini
