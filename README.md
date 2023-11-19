@@ -1,10 +1,8 @@
-SAMBA ACTIVE DIRECTORY PASSWORDS AUDIT
-======================================
+# SAMBA ACTIVE DIRECTORY PASSWORDS AUDIT
 
 This script audit Samba Active Directory duplication and leaked users passwords from haveibeenpwned online database.
 
-FEATURES
-========
+# FEATURES
 
 This script, which can simply be administered from a conf.ini file, audits your Samba Active Directory users passwords, checking whether the same password is used by several users, and whether any users have a password present in the famous haveibeenpwned database. 
 
@@ -14,19 +12,15 @@ This script can also anonymize the results.
 
 This is just the beginning of the adventure, with more features to come, such as mail reporting, auditing of passwords that have remained unchanged for x amount of time..
 
-
-Results without anonymization
------------------------------
+## Results without anonymization
 
 ![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/example.png?raw=true)
 
-Results with anonymization
---------------------------
+## Results with anonymization
 
 ![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/example_anonymization.png?raw=true)
 
-INSTALL NOTES
-=============
+# INSTALL NOTES
 
 - Connect to Samba Active Directory server
 
@@ -46,8 +40,7 @@ pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
 /opt/SambaADAuditPasswords/conf.ini
 ```
 
-LAUNCH AUDIT
-============
+# LAUNCH AUDIT
 
 ```
 python3 /opt/SambaADAuditPasswords/audit_password.py
