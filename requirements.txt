@@ -1,0 +1,6 @@
+colorama
+termcolor
+tabulate
+requests
+configparser
+pycrypto
