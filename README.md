@@ -1,4 +1,4 @@
-# SAMBA ACTIVE DIRECTORY PASSWORDS AUDIT
+# SAMBA ACTIVE DIRECTORY AUDIT PASSWORDS
 
 This script audit Samba Active Directory duplication and leaked users passwords from haveibeenpwned online database.
 
