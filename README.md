@@ -24,7 +24,7 @@ Results without anonymization
 Results with anonymization
 --------------------------
 
-![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/master/example_anonymization.png?raw=true)
+![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/example_anonymization.png?raw=true)
 
 INSTALL NOTES
 =============
