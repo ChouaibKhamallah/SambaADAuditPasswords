@@ -19,7 +19,7 @@ This is just the beginning of the adventure, with more features to come, such as
 Results without anonymization
 -----------------------------
 
-![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/master/example.png?raw=true)
+![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/example.png?raw=true)
 
 Results with anonymization
 --------------------------
