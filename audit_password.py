@@ -25,7 +25,7 @@ try:
 except:
     from Crypto import Random
 ## CONF.INI PARAMETERS
-configfile='/opt/haveibeenpwnd_samba/conf.ini'
+configfile='/opt/SambaADAuditPasswords/conf.ini'
 config = configparser.ConfigParser()
 config.read(configfile)
 dry_run = config.getboolean('common', 'dry_run')
