@@ -34,7 +34,7 @@ mv SambaADAuditPasswords /opt/SambaADAuditPasswords
 pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
 ```
 
-- Configure ini file
+- Configure ini file if needed
 
 ```
 /opt/SambaADAuditPasswords/conf.ini
