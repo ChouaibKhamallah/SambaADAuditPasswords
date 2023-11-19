@@ -1,8 +1,7 @@
 SAMBA ACTIVE DIRECTORY PASSWORDS AUDIT
 ======================================
 
-This script is a fork from sfonteneau audit Samba Active Directory duplication and leaked users passwords from haveibeenpwned online database.
-
+This script audit Samba Active Directory duplication and leaked users passwords from haveibeenpwned online database.
 
 FEATURES
 ========
