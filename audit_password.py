@@ -36,7 +36,10 @@ check_leaked_passwords = config.getboolean('common', 'check_leaked_passwords')
 smbconf=config.get('common', 'smbconf')
 if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
     leaked_password_group = config.get('common', 'leaked_passwords_group_name')
-users_basedn=config.get('common', 'users_basedn')
+if config.has_option('common','users_basedn'):
+    users_basedn=config.get('common', 'users_basedn')
+else:
+    users_basedn = samdb.get_default_basedn() 
 if config.getboolean('common', 'check_inactive_accounts'):
     user_filter = "(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2))"
 else:
