@@ -19,11 +19,8 @@ from samba.ndr import ndr_pack, ndr_unpack
 from samba.param import LoadParm
 from samba.samdb import SamDB
 from samba.netcmd.user import GetPasswordCommand
+from Cryptodome import Random
 
-try:
-    from Cryptodome import Random
-except:
-    from Crypto import Random
 ## CONF.INI PARAMETERS
 configfile='/opt/SambaADAuditPasswords/conf.ini'
 config = configparser.ConfigParser()
