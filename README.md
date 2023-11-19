@@ -32,12 +32,12 @@ FORK IMPROVEMENTS
 Results without anonymization
 -----------------------------
 
-![alt text](https://github.com/ChouaibKhamallah/haveibeenpwnd_samba/blob/master/example.png?raw=true)
+![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/master/example.png?raw=true)
 
 Results with anonymization
 --------------------------
 
-![alt text](https://github.com/ChouaibKhamallah/haveibeenpwnd_samba/blob/master/example_anonymization.png?raw=true)
+![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/master/example_anonymization.png?raw=true)
 
 INSTALL NOTES
 =============
