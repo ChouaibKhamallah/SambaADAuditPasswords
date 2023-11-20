@@ -86,10 +86,9 @@ def ad_group_managment(group_name=None):
             samdb.newgroup(groupname=group_name)
     else:
         for group in samdb.search(samdb.get_default_basedn(), expression=(f"(sAMAccountName={group_name})"), scope=ldb.SCOPE_SUBTREE):
+            
             if 'member' in group:
-                for user in group['member']:
-                    username = ([x['sAMAccountName'][0].decode('utf-8') for x in samdb.search(samdb.get_default_basedn(), expression=(f"(distinguishedName={user})"), scope=ldb.SCOPE_SUBTREE)][0])
-                    samba_ad_users_with_leaked_password_group.append(username)
+                samba_ad_users_with_leaked_password_group = [str(user).split("=")[1].split(",")[0] for user in group['member']]
             else:
                 samba_ad_users_with_leaked_password_group = []
                 
