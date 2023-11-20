@@ -34,7 +34,7 @@ mv SambaADAuditPasswords /opt/SambaADAuditPasswords
 pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
 ```
 
-- By default the script is run in dry_run mode, no group will be managed and the entire domain will be audited. Adjust conf.ini file if necessary
+By default the script is run in dry_run mode, no group will be created or managed on your domain. The entire domain will be audited. If you want to adjust some parameters modify the conf.ini file. 
 
 ```
 /opt/SambaADAuditPasswords/conf.ini
