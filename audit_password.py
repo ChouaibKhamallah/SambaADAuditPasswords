@@ -56,6 +56,7 @@ testpawd.lp = lp
 
 if config.has_option('common','users_basedn'):
     users_basedn=config.get('common', 'users_basedn')
+    print(colored(f'Filtering results in {users_basedn}','green'))
 else:
     users_basedn = samdb.get_default_basedn()
 
