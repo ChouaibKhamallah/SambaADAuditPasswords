@@ -42,6 +42,7 @@ if config.getboolean('common', 'check_inactive_accounts'):
 else:
     user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
 ## CONF.INI PARAMETERS
+
 # SAMBA AD BASE CONNECTION
 parser = optparse.OptionParser(smbconf)
 sambaopts = options.SambaOptions(parser)
@@ -63,6 +64,7 @@ anonymous_users_dict = {}
 samba_ad_users_with_leaked_password_group = []
 current_users_with_leaked_password = []
 user_to_add_in_leaked_password_group = []
+
 # FUNCTION TO PRINT PROGRESS BAR
 def progress(percent=0, width=40,found=0,time_elasped=0):
     left = width * percent // 100
@@ -74,6 +76,7 @@ def progress(percent=0, width=40,found=0,time_elasped=0):
     if found > 0:
         found = colored(found,'red')
     print("\r[", colored(tags,'green'), spaces, "]", f" Task status : {percents} - Time elapsed : {time_elasped} - Founded leaked hash : {found}",  sep="", end="", flush=True)
+    
 def ad_group_managment(group_name=None):
     global samba_ad_users_with_leaked_password_group
     query = (f"(sAMAccountName={group_name})")
@@ -84,9 +87,12 @@ def ad_group_managment(group_name=None):
     else:
         for group in samdb.search(samdb.get_default_basedn(), expression=(f"(sAMAccountName={group_name})"), scope=ldb.SCOPE_SUBTREE):
             if 'member' in group:
-                samba_ad_users_with_leaked_password_group = [str(user).split("=")[1].split(",")[0] for user in group['member']]
+                for user in group['member']:
+                    username = ([x['sAMAccountName'][0].decode('utf-8') for x in samdb.search(samdb.get_default_basedn(), expression=(f"(distinguishedName={user})"), scope=ldb.SCOPE_SUBTREE)][0])
+                    samba_ad_users_with_leaked_password_group.append(username)
             else:
                 samba_ad_users_with_leaked_password_group = []
+                
 def create_dict_hash():
     user_nb = 0
     for user in samdb.search(base=users_basedn, expression=user_filter):
@@ -105,6 +111,7 @@ def create_dict_hash():
             dict_hash[hashnt][dict_hash[hashnt].index(user['samAccountName'][0].decode('utf-8'))] = str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")
             anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = anonymous_users_dict.get(str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}"),{})
             anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = user['samAccountName'][0].decode('utf-8')
+
 def run_check_duplicate_passwords(dict_hash=None):
     print(f"{'='*3} USERS WITH SAME PASSWORD CHECKING {'='*3}\n")
     datas = []
@@ -114,6 +121,7 @@ def run_check_duplicate_passwords(dict_hash=None):
             group_nb+=1
             datas.append([group_nb,len(dict_hash[entry]),dict_hash[entry][:10]])
     print(tabulate(datas, headers=["Group", "Number of accounts", "Accounts"]))
+
 def run_check_leaked_passwords(dict_hash=None):
     print(f"\n{'='*3} LEAKED NTLM HASH CHECKING {'='*3}\n")
     print("Leaked base modification date : %s\n" % (requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0]))
@@ -146,6 +154,7 @@ def run_check_leaked_passwords(dict_hash=None):
                             current_users_with_leaked_password.append(user)
     print("\n")
     print(tabulate(datas, headers=["Hashnt", "Number of leaks", "Accounts"]))
+
 def add_remove_users_ad_group(anonymize_results):
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
     if not anonymize_results:
@@ -171,6 +180,7 @@ def add_remove_users_ad_group(anonymize_results):
         print(f"user_to_delete_from_leaked_group : {len(user_to_delete_from_leaked_password_group)} anonymised_users")
         if not dry_run:
             samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_delete_from_leaked_password_group, add_members_operation=False)
+
 def audit_passwords():
     if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
         ad_group_managment(group_name=leaked_password_group)
@@ -182,5 +192,6 @@ def audit_passwords():
         if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
             add_remove_users_ad_group(anonymize_results)
     print('\n')
+
 if __name__ == '__main__':
     audit_passwords()
