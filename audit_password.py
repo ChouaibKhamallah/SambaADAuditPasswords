@@ -76,40 +76,32 @@ def progress(percent=0, width=40,found=0,time_elasped=0):
     if found > 0:
         found = colored(found,'red')
     print("\r[", colored(tags,'green'), spaces, "]", f" Task status : {percents} - Time elapsed : {time_elasped} - Founded leaked hash : {found}",  sep="", end="", flush=True)
-    
-def ad_group_managment(group_name=None):
-    global samba_ad_users_with_leaked_password_group
-    query = (f"(sAMAccountName={group_name})")
-    if not samdb.search(samdb.get_default_basedn(), expression=(f"(sAMAccountName={group_name})"), scope=ldb.SCOPE_SUBTREE):
-        print(colored(f"\n\nAdd AD Group : {group_name}\n\n","green"))
-        if not dry_run:
-            samdb.newgroup(groupname=group_name)
-    else:
-        for group in samdb.search(samdb.get_default_basedn(), expression=(f"(sAMAccountName={group_name})"), scope=ldb.SCOPE_SUBTREE):
-            
-            if 'member' in group:
-                samba_ad_users_with_leaked_password_group = [str(user).split("=")[1].split(",")[0] for user in group['member']]
-            else:
-                samba_ad_users_with_leaked_password_group = []
                 
 def create_dict_hash():
     user_nb = 0
-    for user in samdb.search(base=users_basedn, expression=user_filter):
-        Random.atfork()
-        passwordattr = 'unicodePwd'
-        password = testpawd.get_account_attributes(samdb,None,samdb.get_default_basedn(),filter="(sAMAccountName=%s)" % str(user["sAMAccountName"]) ,scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr],decrypt=False)
-        if not passwordattr in password:
-            continue
-        hashnt = password[passwordattr][0].hex().upper()
-        if hashnt in dict_hash:
-            dict_hash[hashnt].append(user['samAccountName'][0].decode('utf-8'))
-        else:
-            dict_hash[hashnt] = [user['samAccountName'][0].decode('utf-8')]
-        if anonymize_results:
-            user_nb+=1
-            dict_hash[hashnt][dict_hash[hashnt].index(user['samAccountName'][0].decode('utf-8'))] = str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")
-            anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = anonymous_users_dict.get(str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}"),{})
-            anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = user['samAccountName'][0].decode('utf-8')
+    for user in samdb.search(base=samdb.get_default_basedn(), expression=user_filter):
+
+        if 'memberOf' in user:
+            memberOf = [str(group).split("=")[1].split(",")[0] for group in user['memberOf'] if str(group).split("=")[1].split(",")[0] == leaked_password_group]
+            if memberOf != []:
+                samba_ad_users_with_leaked_password_group.append(user['samAccountName'][0].decode('utf-8'))
+
+        if str(users_basedn) in user['distinguishedName'][0].decode('utf-8'):
+            Random.atfork()
+            passwordattr = 'unicodePwd'
+            password = testpawd.get_account_attributes(samdb,None,samdb.get_default_basedn(),filter="(sAMAccountName=%s)" % str(user["sAMAccountName"]) ,scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr],decrypt=False)
+            if not passwordattr in password:
+                continue
+            hashnt = password[passwordattr][0].hex().upper()
+            if hashnt in dict_hash:
+                dict_hash[hashnt].append(user['samAccountName'][0].decode('utf-8'))
+            else:
+                dict_hash[hashnt] = [user['samAccountName'][0].decode('utf-8')]
+            if anonymize_results:
+                user_nb+=1
+                dict_hash[hashnt][dict_hash[hashnt].index(user['samAccountName'][0].decode('utf-8'))] = str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")
+                anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = anonymous_users_dict.get(str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}"),{})
+                anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = user['samAccountName'][0].decode('utf-8')
 
 def run_check_duplicate_passwords(dict_hash=None):
     print(f"{'='*3} USERS WITH SAME PASSWORD CHECKING {'='*3}\n")
@@ -181,8 +173,7 @@ def add_remove_users_ad_group(anonymize_results):
             samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_delete_from_leaked_password_group, add_members_operation=False)
 
 def audit_passwords():
-    if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
-        ad_group_managment(group_name=leaked_password_group)
+
     create_dict_hash()
     if check_duplicate_passwords:
         run_check_duplicate_passwords(dict_hash=dict_hash)
