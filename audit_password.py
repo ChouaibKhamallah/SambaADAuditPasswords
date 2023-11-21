@@ -7,6 +7,7 @@ import samba.getopt as options
 import requests
 import time
 import json
+from os import path
 import configparser
 from colorama import init
 from termcolor import colored
@@ -41,6 +42,14 @@ if config.getboolean('common', 'check_inactive_accounts'):
     user_filter = "(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2))"
 else:
     user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
+
+
+if config.has_option("common","local_json"):
+    dict_hash_status = {}
+    if path.isfile(config.get('common','local_json')):
+        dict_hash_status = json.load(open(config.get('common','local_json'),"r"))
+
+
 ## CONF.INI PARAMETERS
 
 # SAMBA AD BASE CONNECTION
@@ -61,7 +70,9 @@ else:
     users_basedn = samdb.get_default_basedn()
 
 dict_hash = {}
+
 anonymous_users_dict = {}
+#dict_hash_status = {}
 samba_ad_users_with_leaked_password_group = []
 current_users_with_leaked_password = []
 user_to_add_in_leaked_password_group = []
@@ -114,24 +125,76 @@ def run_check_duplicate_passwords(dict_hash=None):
             datas.append([group_nb,len(dict_hash[entry]),dict_hash[entry][:10]])
     print(tabulate(datas, headers=["Group", "Number of accounts", "Accounts"]))
 
+def check_online(nthash):
+
+    leaked = False
+    result = requests.get(f"https://api.pwnedpasswords.com/range/{nthash[:5]}?mode=ntlm")
+    resultihb = {h.split(':')[0]:h.split(':')[1] for h in  result.content.decode('utf-8').split('\r\n')}
+    if nthash[5:] in resultihb:
+        dict_hash_status['hash_status'][nthash] = dict_hash_status['hash_status'].get(nthash,{'leaked':True,'leaked_nb':resultihb[nthash[5:]]})
+        leaked = True
+    
+    return leaked
+
+def make_full_rescan_after_api_date_modification():
+
+    full_rescan = False
+    if requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0] != dict_hash_status.get('last_scan_api_modification_date',''):
+        full_rescan = True
+    
+    return full_rescan
+
+def export_results_to_cache_file():
+
+    with open(config.get('common','local_json'), "w+",encoding = 'utf-8') as outfile:
+        outfile.write(json.dumps(dict_hash_status, indent=4))
+
 def run_check_leaked_passwords(dict_hash=None):
+
     print(f"\n{'='*3} LEAKED NTLM HASH CHECKING {'='*3}\n")
+
     print("Leaked base modification date : %s\n" % (requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0]))
     print(f"Please wait... {len(dict_hash)} hash to check\n")
+    
+    full_rescan = make_full_rescan_after_api_date_modification()
+    if not full_rescan:
+        dict_hash_status['hash_status'] = dict_hash_status.get('hash_status',{})
+    else:
+         dict_hash_status['hash_status'] = {}
+
+    dict_hash_status["last_scan_api_modification_date"] = dict_hash_status.get('last_scan_api_modification_date',requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0])
+
     datas = []
     found = 0
     start_time = time.time()
+
     for nthash in dict_hash:
+
+        leaked = False
         percentage = int(list(dict_hash).index(nthash) / len(dict_hash) * 100)
         progress(percent=percentage, width=40,found=found,time_elasped=int(time.time()-start_time))
-        result = requests.get(f"https://api.pwnedpasswords.com/range/{nthash[:5]}?mode=ntlm")
-        resultihb = {h.split(':')[0]:h.split(':')[1] for h in  result.content.decode('utf-8').split('\r\n')}
-        if nthash[5:] in resultihb:
-            if anonymize_results:
-                datas.append([nthash.replace(nthash,"#"*len(nthash)),resultihb[nthash[5:]],dict_hash[nthash]])
+
+        if not full_rescan:
+            if nthash in dict_hash_status['hash_status']:
+                if dict_hash_status['hash_status'][nthash]["leaked"]:
+                    dict_hash_status['hash_status'][nthash].update({'leaked':True,'leaked_nb':dict_hash_status['hash_status'][nthash]['leaked_nb']})
+                    leaked = True
             else:
-                datas.append([nthash,resultihb[nthash[5:]],dict_hash[nthash]])
+                if check_online(nthash):
+                    leaked = True
+
+        else:
+            if check_online(nthash):
+                leaked = True
+
+        if leaked:
+
+            if anonymize_results:
+                datas.append([nthash.replace(nthash,"#"*len(nthash)),dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]])
+            else:
+                datas.append([nthash,dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]])
             found+=1
+
             if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
                 for user in dict_hash[nthash]:
                     if not anonymize_results:
@@ -144,6 +207,9 @@ def run_check_leaked_passwords(dict_hash=None):
                             user_to_add_in_leaked_password_group.append(user)
                         if not user in current_users_with_leaked_password:
                             current_users_with_leaked_password.append(user)
+        else:
+            dict_hash_status['hash_status'][nthash] = dict_hash_status['hash_status'].get(nthash,{'leaked':False,'leaked_nb':0})
+
     print("\n")
     print(tabulate(datas, headers=["Hashnt", "Number of leaks", "Accounts"]))
 
