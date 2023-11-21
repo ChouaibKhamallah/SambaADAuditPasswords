@@ -1,6 +1,6 @@
 
 # Change Log
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. https://github.com/ChouaibKhamallah/SambaADAuditPasswords/commit/36e25f1fdf61c4fcafa6501abb5162bfb3d9eada 
 
 # 2023-11-21
 
