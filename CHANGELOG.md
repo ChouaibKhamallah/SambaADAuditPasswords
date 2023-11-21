@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 # Added
 
-- json file to store already scanned hashes, the script will scan the hash online not present in the local cache, then add it to the local cache. If the online database is updated, the cache will be completely erased and all hashes will be scanned.
+- Increase request speed : json file to store already scanned hashes, the script will scan the hash online not present in the local cache, then add it to the local cache. If the online database is updated, the cache will be completely erased and all hashes will be scanned.
   
 # 2023-11-20
 
