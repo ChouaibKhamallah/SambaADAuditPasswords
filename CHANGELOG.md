@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 # Added
 
-- **Check of privileged users**: If you want to check privileged groups configure the conf.ini file set privilegied_groups names separated by commas, requires check_privilegied_group to be set to True
+- **Check for privileged accounts**: If you want to check privileged groups configure the conf.ini file set privilegied_groups names separated by commas, requires check_privilegied_group to be set to True
   
 ## Changed
 
