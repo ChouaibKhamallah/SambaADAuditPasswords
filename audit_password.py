@@ -57,7 +57,7 @@ if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
     leaked_password_group = config.get('common', 'leaked_passwords_group_name')
  
 if config.getboolean('common', 'check_inactive_accounts'):
-    user_filter = "(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2))"
+    user_filter = "(&(objectClass=user)(objectCategory=person))"
 else:
     user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
 
@@ -97,7 +97,7 @@ def add_to_list_if_user_member(groupname=None,group_list=None,sAMAccountName=Non
 
     memberOf = [str(group).split("=")[1].split(",")[0] for group in user_memberof if str(group).split("=")[1].split(",")[0] == groupname]
     if memberOf != []:
-        if sAMAccountName not in group_list:
+        if not sAMAccountName in group_list:
             group_list.append(sAMAccountName)
 
 def create_dict_hash():
@@ -139,6 +139,7 @@ def create_dict_hash():
             
             users_dict[sAMAccountName] = Anon_sAMAccountName
 
+
 def run_check_duplicate_passwords(dict_hash=None):
 
     print(f"{'='*3} USERS WITH SAME PASSWORD CHECKING {'='*3}\n")
@@ -148,28 +149,32 @@ def run_check_duplicate_passwords(dict_hash=None):
         if len(dict_hash[entry]['accounts']) > 1:
             if anonymize_results:
                 if config.getboolean('common','check_privilegied_group'):
-                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['anon_accounts'][:3]])
+                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),', '.join(dict_hash[entry]["anon_accounts"][:2]),f'and {len(dict_hash[entry]["anon_accounts"][2:])} more'])
                 else:
-                    datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['anon_accounts'][:3]])
+                    datas.append([len(dict_hash[entry]['accounts']),', '.join(dict_hash[entry]["anon_accounts"][:2]),f'and {len(dict_hash[entry]["anon_accounts"][2:])} more'])
             else:
                 if config.getboolean('common','check_privilegied_group'):
-                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['accounts'][:3]])
+                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),', '.join(dict_hash[entry]["accounts"][:2]),f'and {len(dict_hash[entry]["accounts"][2:])} more'])
                 else:
-                    datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['accounts'][:3]])
+                    datas.append([len(dict_hash[entry]['accounts']),', '.join(dict_hash[entry]["accounts"][:2]),f'and {len(dict_hash[entry]["accounts"][2:])} more'])
 
     if config.getboolean('common','check_privilegied_group'):
-        print(tabulate(datas, headers=["Number of accounts","Privilegied accounts","Accounts"]))
+        print(tabulate(datas, headers=["Number of accounts","Privilegied accounts","Accounts","How much More ?"]))
 
         print(f"\n{'='*3} CHECKING FOR DUPLICATED HASH FOR PRIVILEGIED ACCOUNTS {'='*3}\n")
         for entry in dict_hash:
+            duplicated_hash_for_privilegied_account = False
             if len(dict_hash[entry]['accounts']) > 1:
                 if len(dict_hash[entry]['privilegied_accounts']) > 0:
                     for user in dict_hash[entry]['privilegied_accounts']:
-                        if anonymize_results:
-                            user = users_dict[user]
-                        print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {user}')
+                        duplicated_hash_for_privilegied_account = True
+            if duplicated_hash_for_privilegied_account:
+                if anonymize_results:                
+                    print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["anon_accounts"]}')
+                else:
+                    print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["accounts"]}')
     else:
-        print(tabulate(datas, headers=["Number of accounts","Accounts"]))
+        print(tabulate(datas, headers=["Number of accounts","Accounts","How much More ?"]))
 
 def check_online(nthash):
 
@@ -250,7 +255,10 @@ def run_check_leaked_passwords(dict_hash=None):
             if user in privilegied_accounts:
                 if anonymize_results:
                     user = users_dict[user]
-                print(f'WARNING: NTHASH for {user}') 
+                print(f'WARNING: NTHASH for {user}')
+    
+    with open(config.get('common','local_json'),"w") as json_file:
+        json.dump(dict_hash_status,json_file)
 
 def add_remove_users_ad_group():
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
