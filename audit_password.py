@@ -170,7 +170,7 @@ def run_check_duplicate_passwords(dict_hash=None):
                         duplicated_hash_for_privilegied_account = True
             if duplicated_hash_for_privilegied_account:
                 if anonymize_results:                
-                    print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["anon_accounts"]}')
+                    print(f'WARNING: {"#"*len(entry)} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["anon_accounts"]}')
                 else:
                     print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["accounts"]}')
     else:
