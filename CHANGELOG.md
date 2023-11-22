@@ -2,6 +2,16 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+# 2023-11-22
+
+# Added
+
+- Check of privileged users: If you want to check privileged groups configure the conf.ini file set privilegied_groups names separated by commas, requires check_privilegied_group to be set to True
+  
+## Changed
+
+- Code simplification
+
 # 2023-11-21
 
 # Added
