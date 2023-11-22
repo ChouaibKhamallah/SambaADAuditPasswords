@@ -51,8 +51,6 @@ check_duplicate_passwords = config.getboolean('common', 'check_duplicate_passwor
 
 check_leaked_passwords = config.getboolean('common', 'check_leaked_passwords')
 
-
-
 if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
     leaked_password_group = config.get('common', 'leaked_passwords_group_name')
  
@@ -93,6 +91,13 @@ def progress(percent=0, width=40,found=0,time_elasped=0):
         found = colored(found,'red')
     print("\r[", colored(tags,'green'), spaces, "]", f" Task status : {percents} - Time elapsed : {time_elasped} - Founded leaked hash : {found}",  sep="", end="", flush=True)
 
+def create_ad_group_if_needed(group_name=None):
+    query = (f"(sAMAccountName={group_name})")
+    if not samdb.search(samdb.get_default_basedn(), expression=(f"(sAMAccountName={group_name})"), scope=ldb.SCOPE_SUBTREE):
+        print(colored(f"\n\nAdd AD Group : {group_name}\n\n","green"))
+        if not dry_run:
+            samdb.newgroup(groupname=group_name)
+            
 def add_to_list_if_user_member(groupname=None,group_list=None,sAMAccountName=None,user_memberof=None):
 
     memberOf = [str(group).split("=")[1].split(",")[0] for group in user_memberof if str(group).split("=")[1].split(",")[0] == groupname]
@@ -283,6 +288,7 @@ def audit_passwords():
     if check_leaked_passwords:
         run_check_leaked_passwords(dict_hash=dict_hash)
         if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
+            create_ad_group_if_needed(group_name=leaked_password_group)
             add_remove_users_ad_group()
     print('\n')
 
