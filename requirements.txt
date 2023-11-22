@@ -4,3 +4,4 @@ tabulate
 requests
 configparser
 pycryptodomex
+json
