@@ -244,6 +244,14 @@ def run_check_leaked_passwords(dict_hash=None):
     print("\n")
     print(tabulate(datas, headers=["Hashnt", "Number of leaks", "Accounts"]))
 
+    if config.getboolean('common','check_privilegied_group'):
+        print(f"\n{'='*3} CHECKING FOR LEAKED HASH FOR PRIVILEGIED ACCOUNTS {'='*3}\n")
+        for user in current_users_with_leaked_password:
+            if user in privilegied_accounts:
+                if anonymize_results:
+                    user = users_dict[user]
+                print(f'WARNING: NTHASH for {user}') 
+
 def add_remove_users_ad_group():
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
     user_to_delete_from_leaked_password_group = list(set(samba_ad_users_with_leaked_password_group).difference(set(current_users_with_leaked_password)))
