@@ -167,7 +167,7 @@ def run_check_duplicate_passwords(dict_hash=None):
                     for user in dict_hash[entry]['privilegied_accounts']:
                         if anonymize_results:
                             user = users_dict[user]
-                        print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privileged account : {user}')
+                        print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {user}')
     else:
         print(tabulate(datas, headers=["Number of accounts","Accounts"]))
 
