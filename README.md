@@ -50,7 +50,7 @@ python3 /opt/SambaADAuditPasswords/audit_password.py
 
 - Mail reporting
 - ~~Check if affected accounts has privileges~~
-- heck for passwords modification date
+- Check for passwords modification date
 - Check for blank passwords
 - Automatically modify affected accounts by activating "User must change password at next logon"
 - Password policies summary
