@@ -22,36 +22,10 @@ from samba.samdb import SamDB
 from samba.netcmd.user import GetPasswordCommand
 from Cryptodome import Random
 
-## CONF.INI PARAMETERS
 configfile='/opt/SambaADAuditPasswords/conf.ini'
 config = configparser.ConfigParser()
 config.read(configfile)
-dry_run = config.getboolean('common', 'dry_run')
-anonymize_results = config.getboolean('common', 'anonymize_results')
-if anonymize_results:
-    print(colored("ANONYMIZED RESULTS\n","red"))
-if dry_run:
-    print(colored("DRYRUN - no users will be added to or deleted from the leaked_passwords_group_name group, only print","blue"))
-check_duplicate_passwords = config.getboolean('common', 'check_duplicate_passwords')
-check_leaked_passwords = config.getboolean('common', 'check_leaked_passwords')
 smbconf=config.get('common', 'smbconf')
-if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
-    leaked_password_group = config.get('common', 'leaked_passwords_group_name')
- 
-if config.getboolean('common', 'check_inactive_accounts'):
-    user_filter = "(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2))"
-else:
-    user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
-
-
-if config.has_option("common","local_json"):
-    dict_hash_status = {}
-    if path.isfile(config.get('common','local_json')):
-        dict_hash_status = json.load(open(config.get('common','local_json'),"r"))
-
-
-## CONF.INI PARAMETERS
-
 # SAMBA AD BASE CONNECTION
 parser = optparse.OptionParser(smbconf)
 sambaopts = options.SambaOptions(parser)
@@ -63,19 +37,49 @@ testpawd = GetPasswordCommand()
 testpawd.lp = lp
 # SAMBA AD BASE CONNECTION
 
+## CONF.INI PARAMETERS
+
+dry_run = config.getboolean('common', 'dry_run')
+anonymize_results = config.getboolean('common', 'anonymize_results')
+
+if anonymize_results:
+    print(colored("ANONYMIZED RESULTS\n","red"))
+if dry_run:
+    print(colored("DRYRUN - no users will be added to or deleted from the leaked_passwords_group_name group, only print","blue"))
+
+check_duplicate_passwords = config.getboolean('common', 'check_duplicate_passwords')
+
+check_leaked_passwords = config.getboolean('common', 'check_leaked_passwords')
+
+
+
+if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
+    leaked_password_group = config.get('common', 'leaked_passwords_group_name')
+ 
+if config.getboolean('common', 'check_inactive_accounts'):
+    user_filter = "(&(objectClass=user)(objectCategory=person)(userAccountControl:1.2.840.113556.1.4.803:=2))"
+else:
+    user_filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
+
+if config.has_option("common","local_json"):
+    dict_hash_status = {}
+    if path.isfile(config.get('common','local_json')):
+        dict_hash_status = json.load(open(config.get('common','local_json'),"r"))
+
 if config.has_option('common','users_basedn'):
     users_basedn=config.get('common', 'users_basedn')
     print(colored(f'Filtering results in {users_basedn}','green'))
 else:
     users_basedn = samdb.get_default_basedn()
 
-dict_hash = {}
+## CONF.INI PARAMETERS
 
-anonymous_users_dict = {}
-#dict_hash_status = {}
+dict_hash = {}
+users_dict = {}
 samba_ad_users_with_leaked_password_group = []
 current_users_with_leaked_password = []
 user_to_add_in_leaked_password_group = []
+privilegied_accounts = []
 
 # FUNCTION TO PRINT PROGRESS BAR
 def progress(percent=0, width=40,found=0,time_elasped=0):
@@ -88,42 +92,84 @@ def progress(percent=0, width=40,found=0,time_elasped=0):
     if found > 0:
         found = colored(found,'red')
     print("\r[", colored(tags,'green'), spaces, "]", f" Task status : {percents} - Time elapsed : {time_elasped} - Founded leaked hash : {found}",  sep="", end="", flush=True)
-                
+
+def add_to_list_if_user_member(groupname=None,group_list=None,sAMAccountName=None,user_memberof=None):
+
+    memberOf = [str(group).split("=")[1].split(",")[0] for group in user_memberof if str(group).split("=")[1].split(",")[0] == groupname]
+    if memberOf != []:
+        if sAMAccountName not in group_list:
+            group_list.append(sAMAccountName)
+
 def create_dict_hash():
+
     user_nb = 0
     for user in samdb.search(base=samdb.get_default_basedn(), expression=user_filter):
+        user_nb+=1
 
+        sAMAccountName = user['samAccountName'][0].decode('utf-8')
+        Anon_sAMAccountName = str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")
+        
         if 'memberOf' in user:
-            memberOf = [str(group).split("=")[1].split(",")[0] for group in user['memberOf'] if str(group).split("=")[1].split(",")[0] == leaked_password_group]
-            if memberOf != []:
-                samba_ad_users_with_leaked_password_group.append(user['samAccountName'][0].decode('utf-8'))
+            if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
+                add_to_list_if_user_member(groupname=leaked_password_group,group_list=samba_ad_users_with_leaked_password_group,sAMAccountName=sAMAccountName,user_memberof=user['memberOf'])
+        
+            if config.getboolean('common','check_admins_group'):
+                if config.has_option('common','privilegied_groups'):
+                    for group in config.get('common','privilegied_groups').split(','):
+                        add_to_list_if_user_member(groupname=group,group_list=privilegied_accounts,sAMAccountName=sAMAccountName,user_memberof=user['memberOf'])
 
         if str(users_basedn) in user['distinguishedName'][0].decode('utf-8'):
+
             Random.atfork()
             passwordattr = 'unicodePwd'
             password = testpawd.get_account_attributes(samdb,None,samdb.get_default_basedn(),filter="(sAMAccountName=%s)" % str(user["sAMAccountName"]) ,scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr],decrypt=False)
             if not passwordattr in password:
                 continue
             hashnt = password[passwordattr][0].hex().upper()
-            if hashnt in dict_hash:
-                dict_hash[hashnt].append(user['samAccountName'][0].decode('utf-8'))
+            
+            if config.getboolean('common','check_admins_group'):
+                dict_hash[hashnt] = dict_hash.get(hashnt,{'accounts':[],'anon_accounts':[],'privilegied_accounts':[]})
+                if sAMAccountName in privilegied_accounts:
+                    dict_hash[hashnt]['privilegied_accounts'].append(sAMAccountName)
             else:
-                dict_hash[hashnt] = [user['samAccountName'][0].decode('utf-8')]
-            if anonymize_results:
-                user_nb+=1
-                dict_hash[hashnt][dict_hash[hashnt].index(user['samAccountName'][0].decode('utf-8'))] = str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")
-                anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = anonymous_users_dict.get(str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}"),{})
-                anonymous_users_dict[str(user['samAccountName'][0].decode('utf-8')).replace(str(user['samAccountName'][0].decode('utf-8')),f"anonymous_{str(user_nb)}")] = user['samAccountName'][0].decode('utf-8')
+                dict_hash[hashnt] = dict_hash.get(hashnt,{'accounts':[],'anon_accounts':[]})
+
+            dict_hash[hashnt]['anon_accounts'].append(Anon_sAMAccountName)
+            dict_hash[hashnt]['accounts'].append(user['samAccountName'][0].decode('utf-8'))
+            
+            users_dict[sAMAccountName] = Anon_sAMAccountName
 
 def run_check_duplicate_passwords(dict_hash=None):
+
     print(f"{'='*3} USERS WITH SAME PASSWORD CHECKING {'='*3}\n")
     datas = []
-    group_nb = 0
+
     for entry in dict_hash:
-        if len(dict_hash[entry]) >1:
-            group_nb+=1
-            datas.append([group_nb,len(dict_hash[entry]),dict_hash[entry][:10]])
-    print(tabulate(datas, headers=["Group", "Number of accounts", "Accounts"]))
+        if len(dict_hash[entry]['accounts']) > 1:
+            if anonymize_results:
+                if config.getboolean('common','check_admins_group'):
+                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['anon_accounts'][:3]])
+                else:
+                    datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['anon_accounts'][:3]])
+            else:
+                if config.getboolean('common','check_admins_group'):
+                    datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['accounts'][:3]])
+                else:
+                    datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['accounts'][:3]])
+
+    if config.getboolean('common','check_admins_group'):
+        print(tabulate(datas, headers=["Number of accounts","Privilegied accounts","Accounts"]))
+
+        print(f"\n{'='*3} CHECKING FOR DUPLICATED HASH FOR PRIVILEGIED ACCOUNTS {'='*3}\n")
+        for entry in dict_hash:
+            if len(dict_hash[entry]['accounts']) > 1:
+                if len(dict_hash[entry]['privilegied_accounts']) > 0:
+                    for user in dict_hash[entry]['privilegied_accounts']:
+                        if anonymize_results:
+                            user = users_dict[user]
+                        print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privileged account : {user}')
+    else:
+        print(tabulate(datas, headers=["Number of accounts","Accounts"]))
 
 def check_online(nthash):
 
@@ -169,11 +215,9 @@ def run_check_leaked_passwords(dict_hash=None):
     start_time = time.time()
 
     for nthash in dict_hash:
-
         leaked = False
         percentage = int(list(dict_hash).index(nthash) / len(dict_hash) * 100)
         progress(percent=percentage, width=40,found=found,time_elasped=int(time.time()-start_time))
-
         if not full_rescan:
             if nthash in dict_hash_status['hash_status']:
                 if dict_hash_status['hash_status'][nthash]["leaked"]:
@@ -182,62 +226,38 @@ def run_check_leaked_passwords(dict_hash=None):
             else:
                 if check_online(nthash):
                     leaked = True
-
         else:
             if check_online(nthash):
                 leaked = True
-
         if leaked:
-
+            for user in dict_hash[nthash]['accounts']:
+                current_users_with_leaked_password.append(user)
+                if not user in samba_ad_users_with_leaked_password_group:
+                    user_to_add_in_leaked_password_group.append(user)
             if anonymize_results:
-                datas.append([nthash.replace(nthash,"#"*len(nthash)),dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]])
+                datas.append([nthash.replace(nthash,"#"*len(nthash)),dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]['anon_accounts']])
             else:
-                datas.append([nthash,dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]])
+                datas.append([nthash,dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]['accounts']])
             found+=1
-
-            if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
-                for user in dict_hash[nthash]:
-                    if not anonymize_results:
-                        if not user in samba_ad_users_with_leaked_password_group:
-                            user_to_add_in_leaked_password_group.append(user)
-                        if not user in current_users_with_leaked_password:
-                            current_users_with_leaked_password.append(user)
-                    else:
-                        if not anonymous_users_dict[user] in samba_ad_users_with_leaked_password_group:
-                            user_to_add_in_leaked_password_group.append(user)
-                        if not user in current_users_with_leaked_password:
-                            current_users_with_leaked_password.append(user)
         else:
             dict_hash_status['hash_status'][nthash] = dict_hash_status['hash_status'].get(nthash,{'leaked':False,'leaked_nb':0})
-
     print("\n")
     print(tabulate(datas, headers=["Hashnt", "Number of leaks", "Accounts"]))
 
-def add_remove_users_ad_group(anonymize_results):
+def add_remove_users_ad_group():
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
-    if not anonymize_results:
-        user_to_delete_from_leaked_password_group = list(set(samba_ad_users_with_leaked_password_group).difference(set(current_users_with_leaked_password)))
-       
-        print(f"user_to_add_in_leaked_group {user_to_add_in_leaked_password_group}")
-        if not dry_run:
-            samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_add_in_leaked_password_group, add_members_operation=True)
-        print(f"user_to_delete_from_leaked_group {user_to_delete_from_leaked_password_group}")
-        if not dry_run:
-            samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_delete_from_leaked_password_group, add_members_operation=False)
+    user_to_delete_from_leaked_password_group = list(set(samba_ad_users_with_leaked_password_group).difference(set(current_users_with_leaked_password)))
+    
+    if anonymize_results:
+        print(f"user_to_add_in_leaked_group {[users_dict[x] for x in user_to_add_in_leaked_password_group]}")
+        print(f"user_to_delete_from_leaked_group {[users_dict[x] for x in user_to_delete_from_leaked_password_group]}")
     else:
-        anonymized_current_users_with_leaked_password = []
-        for user in current_users_with_leaked_password:
-            anonymized_current_users_with_leaked_password.append(anonymous_users_dict[user])
-        user_to_delete_from_leaked_password_group = list(set(samba_ad_users_with_leaked_password_group).difference(set(anonymized_current_users_with_leaked_password)))
-        decrypt_user_to_add_in_leaked_password_group = []
-        for user in user_to_add_in_leaked_password_group:
-            decrypt_user_to_add_in_leaked_password_group.append(anonymous_users_dict[user])
-        print(f"user_to_add_in_leaked_group : {len(decrypt_user_to_add_in_leaked_password_group)} anonymised_users")
-        if not dry_run:
-            samdb.add_remove_group_members(groupname=leaked_password_group, members=decrypt_user_to_add_in_leaked_password_group, add_members_operation=True)
-        print(f"user_to_delete_from_leaked_group : {len(user_to_delete_from_leaked_password_group)} anonymised_users")
-        if not dry_run:
-            samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_delete_from_leaked_password_group, add_members_operation=False)
+        print(f"user_to_add_in_leaked_group {user_to_add_in_leaked_password_group}")
+        print(f"user_to_delete_from_leaked_group {user_to_delete_from_leaked_password_group}")
+
+    if not dry_run:
+        samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_add_in_leaked_password_group, add_members_operation=True)
+        samdb.add_remove_group_members(groupname=leaked_password_group, members=user_to_delete_from_leaked_password_group, add_members_operation=False)
 
 def audit_passwords():
 
@@ -247,7 +267,7 @@ def audit_passwords():
     if check_leaked_passwords:
         run_check_leaked_passwords(dict_hash=dict_hash)
         if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
-            add_remove_users_ad_group(anonymize_results)
+            add_remove_users_ad_group()
     print('\n')
 
 if __name__ == '__main__':
