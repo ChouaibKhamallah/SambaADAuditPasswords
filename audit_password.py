@@ -113,7 +113,7 @@ def create_dict_hash():
             if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
                 add_to_list_if_user_member(groupname=leaked_password_group,group_list=samba_ad_users_with_leaked_password_group,sAMAccountName=sAMAccountName,user_memberof=user['memberOf'])
         
-            if config.getboolean('common','check_admins_group'):
+            if config.getboolean('common','check_privilegied_group'):
                 if config.has_option('common','privilegied_groups'):
                     for group in config.get('common','privilegied_groups').split(','):
                         add_to_list_if_user_member(groupname=group,group_list=privilegied_accounts,sAMAccountName=sAMAccountName,user_memberof=user['memberOf'])
@@ -127,7 +127,7 @@ def create_dict_hash():
                 continue
             hashnt = password[passwordattr][0].hex().upper()
             
-            if config.getboolean('common','check_admins_group'):
+            if config.getboolean('common','check_privilegied_group'):
                 dict_hash[hashnt] = dict_hash.get(hashnt,{'accounts':[],'anon_accounts':[],'privilegied_accounts':[]})
                 if sAMAccountName in privilegied_accounts:
                     dict_hash[hashnt]['privilegied_accounts'].append(sAMAccountName)
@@ -147,17 +147,17 @@ def run_check_duplicate_passwords(dict_hash=None):
     for entry in dict_hash:
         if len(dict_hash[entry]['accounts']) > 1:
             if anonymize_results:
-                if config.getboolean('common','check_admins_group'):
+                if config.getboolean('common','check_privilegied_group'):
                     datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['anon_accounts'][:3]])
                 else:
                     datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['anon_accounts'][:3]])
             else:
-                if config.getboolean('common','check_admins_group'):
+                if config.getboolean('common','check_privilegied_group'):
                     datas.append([len(dict_hash[entry]['accounts']),len(dict_hash[entry]['privilegied_accounts']),dict_hash[entry]['accounts'][:3]])
                 else:
                     datas.append([len(dict_hash[entry]['accounts']),dict_hash[entry]['accounts'][:3]])
 
-    if config.getboolean('common','check_admins_group'):
+    if config.getboolean('common','check_privilegied_group'):
         print(tabulate(datas, headers=["Number of accounts","Privilegied accounts","Accounts"]))
 
         print(f"\n{'='*3} CHECKING FOR DUPLICATED HASH FOR PRIVILEGIED ACCOUNTS {'='*3}\n")
@@ -247,7 +247,7 @@ def run_check_leaked_passwords(dict_hash=None):
 def add_remove_users_ad_group():
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
     user_to_delete_from_leaked_password_group = list(set(samba_ad_users_with_leaked_password_group).difference(set(current_users_with_leaked_password)))
-    
+
     if anonymize_results:
         print(f"user_to_add_in_leaked_group {[users_dict[x] for x in user_to_add_in_leaked_password_group]}")
         print(f"user_to_delete_from_leaked_group {[users_dict[x] for x in user_to_delete_from_leaked_password_group]}")
