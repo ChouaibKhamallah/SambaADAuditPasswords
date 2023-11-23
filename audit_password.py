@@ -51,6 +51,8 @@ check_duplicate_passwords = config.getboolean('common', 'check_duplicate_passwor
 
 check_leaked_passwords = config.getboolean('common', 'check_leaked_passwords')
 
+
+
 if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
     leaked_password_group = config.get('common', 'leaked_passwords_group_name')
  
@@ -78,6 +80,7 @@ samba_ad_users_with_leaked_password_group = []
 current_users_with_leaked_password = []
 user_to_add_in_leaked_password_group = []
 privilegied_accounts = []
+anonymous_privilegied_accounts = []
 
 # FUNCTION TO PRINT PROGRESS BAR
 def progress(percent=0, width=40,found=0,time_elasped=0):
@@ -97,7 +100,7 @@ def create_ad_group_if_needed(group_name=None):
         print(colored(f"\n\nAdd AD Group : {group_name}\n\n","green"))
         if not dry_run:
             samdb.newgroup(groupname=group_name)
-            
+
 def add_to_list_if_user_member(groupname=None,group_list=None,sAMAccountName=None,user_memberof=None):
 
     memberOf = [str(group).split("=")[1].split(",")[0] for group in user_memberof if str(group).split("=")[1].split(",")[0] == groupname]
@@ -144,7 +147,9 @@ def create_dict_hash():
             
             users_dict[sAMAccountName] = Anon_sAMAccountName
 
-
+            if sAMAccountName in privilegied_accounts and not Anon_sAMAccountName in anonymous_privilegied_accounts:
+                anonymous_privilegied_accounts.append(Anon_sAMAccountName)
+                
 def run_check_duplicate_passwords(dict_hash=None):
 
     print(f"{'='*3} USERS WITH SAME PASSWORD CHECKING {'='*3}\n")
@@ -175,20 +180,22 @@ def run_check_duplicate_passwords(dict_hash=None):
                         duplicated_hash_for_privilegied_account = True
             if duplicated_hash_for_privilegied_account:
                 if anonymize_results:                
-                    print(f'WARNING: {"#"*len(entry)} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["anon_accounts"]}')
+                    print(f'WARNING: {"#"*len(entry)} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {", " .join([x for x in dict_hash[entry]["anon_accounts"] if x in anonymous_privilegied_accounts])}')
                 else:
-                    print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {dict_hash[entry]["accounts"]}')
+                    print(f'WARNING: {entry} is used by {len(dict_hash[entry]["accounts"])} users, including privilegied account : {", ".join([x for x in dict_hash[entry]["accounts"] if x in privilegied_accounts])}')
     else:
         print(tabulate(datas, headers=["Number of accounts","Accounts","How much More ?"]))
 
-def check_online(nthash):
+def check_nthash_online_if_needed(nthash):
 
     leaked = False
     result = requests.get(f"https://api.pwnedpasswords.com/range/{nthash[:5]}?mode=ntlm")
     resultihb = {h.split(':')[0]:h.split(':')[1] for h in  result.content.decode('utf-8').split('\r\n')}
     if nthash[5:] in resultihb:
-        dict_hash_status['hash_status'][nthash] = dict_hash_status['hash_status'].get(nthash,{'leaked':True,'leaked_nb':resultihb[nthash[5:]]})
+        dict_hash_status['hash_status'][nthash] = int(resultihb[nthash[5:]])
         leaked = True
+    else:
+        dict_hash_status['hash_status'][nthash] = 0
     
     return leaked
 
@@ -203,7 +210,7 @@ def make_full_rescan_after_api_date_modification():
 def export_results_to_cache_file():
 
     with open(config.get('common','local_json'), "w+",encoding = 'utf-8') as outfile:
-        outfile.write(json.dumps(dict_hash_status, indent=4))
+        outfile.write(json.dumps(dict_hash_status))
 
 def run_check_leaked_passwords(dict_hash=None):
 
@@ -230,29 +237,36 @@ def run_check_leaked_passwords(dict_hash=None):
         progress(percent=percentage, width=40,found=found,time_elasped=int(time.time()-start_time))
         if not full_rescan:
             if nthash in dict_hash_status['hash_status']:
-                if dict_hash_status['hash_status'][nthash]["leaked"]:
-                    dict_hash_status['hash_status'][nthash].update({'leaked':True,'leaked_nb':dict_hash_status['hash_status'][nthash]['leaked_nb']})
+                if dict_hash_status['hash_status'][nthash] > 0 :
                     leaked = True
             else:
-                if check_online(nthash):
+                if check_nthash_online_if_needed(nthash):
                     leaked = True
         else:
-            if check_online(nthash):
+            if check_nthash_online_if_needed(nthash):
                 leaked = True
         if leaked:
+            found+=1
             for user in dict_hash[nthash]['accounts']:
                 current_users_with_leaked_password.append(user)
                 if not user in samba_ad_users_with_leaked_password_group:
                     user_to_add_in_leaked_password_group.append(user)
             if anonymize_results:
-                datas.append([nthash.replace(nthash,"#"*len(nthash)),dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]['anon_accounts']])
+                if config.getboolean('common','check_privilegied_group'):
+                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash]),len(dict_hash[nthash]['privilegied_accounts']),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
+                else:
+                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash]),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
             else:
-                datas.append([nthash,dict_hash_status['hash_status'][nthash]['leaked_nb'],dict_hash[nthash]['accounts']])
-            found+=1
-        else:
-            dict_hash_status['hash_status'][nthash] = dict_hash_status['hash_status'].get(nthash,{'leaked':False,'leaked_nb':0})
+                if config.getboolean('common','check_privilegied_group'):
+                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash]),len(dict_hash[nthash]['privilegied_accounts']),', '.join(dict_hash[nthash]['accounts'][:2]),f'and {len(dict_hash[nthash]["accounts"][2:])} more'])
+                else:
+                    datas.append([len(dict_hash[nthash]['accounts']),str(dict_hash_status['hash_status'][nthash]),', '.join(dict_hash[nthash]['accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
+
     print("\n")
-    print(tabulate(datas, headers=["Hashnt", "Number of leaks", "Accounts"]))
+    if config.getboolean('common','check_privilegied_group'):
+        print(tabulate(datas, headers=["Number of accounts","Number of leaks","Privilegied accounts","Accounts","How much More ?"]))
+    else:
+        print(tabulate(datas, headers=["Number of accounts","Number of leaks", "Accounts","How much More ?"]))
 
     if config.getboolean('common','check_privilegied_group'):
         print(f"\n{'='*3} CHECKING FOR LEAKED HASH FOR PRIVILEGIED ACCOUNTS {'='*3}\n")
@@ -261,9 +275,6 @@ def run_check_leaked_passwords(dict_hash=None):
                 if anonymize_results:
                     user = users_dict[user]
                 print(f'WARNING: NTHASH for {user}')
-    
-    with open(config.get('common','local_json'),"w") as json_file:
-        json.dump(dict_hash_status,json_file)
 
 def add_remove_users_ad_group():
     print(f"\n{'='*3} LEAKED AD GROUP MODIFICATIONS CHECKING {'='*3}\n")
@@ -283,13 +294,19 @@ def add_remove_users_ad_group():
 def audit_passwords():
 
     create_dict_hash()
+
     if check_duplicate_passwords:
         run_check_duplicate_passwords(dict_hash=dict_hash)
+
     if check_leaked_passwords:
         run_check_leaked_passwords(dict_hash=dict_hash)
+
         if config.getboolean('common', 'add_users_in_leaked_passwords_group'):
             create_ad_group_if_needed(group_name=leaked_password_group)
             add_remove_users_ad_group()
+
+    export_results_to_cache_file()
+
     print('\n')
 
 if __name__ == '__main__':
