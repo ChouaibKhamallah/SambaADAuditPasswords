@@ -2,6 +2,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+# 2023-11-23
+
+## Changed
+
+- Cache lightening
+- Better results organization
+- Better output for duplicate privileged accounts
+
 # 2023-11-22
 
 # Added
