@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## Added
 
-- **Export results to xlsx file** : If you want to export results in xlsx file you can configure the conif.ini set full path on export_results_to_xlsx option
+- **Export results to xlsx file** : If you want to export results in xlsx file you can configure the conf.ini set full path on export_results_to_xlsx option
 
 # 2023-11-23
 
