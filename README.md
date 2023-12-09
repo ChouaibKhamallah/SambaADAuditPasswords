@@ -20,6 +20,10 @@ This is just the beginning of the adventure, with more features to come, such as
 
 ![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/.github/images/example_anonymization.png?raw=true)
 
+## Results in xlsx file
+
+![alt text](https://github.com/ChouaibKhamallah/SambaADAuditPasswords/blob/main/.github/images/example_xlsx.png?raw=true)
+
 # INSTALL NOTES
 
 - Connect to Samba Active Directory server
