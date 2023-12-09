@@ -207,7 +207,7 @@ def make_full_rescan_after_api_date_modification():
 
     full_rescan = False
     if requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0] != dict_hash_status.get('last_scan_api_modification_date',''):
-        dict_hash_status['last_scan_api_modification_date'] = requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"]
+        dict_hash_status['last_scan_api_modification_date'] = requests.get("https://haveibeenpwned.com/api/v3/latestbreach").json()["ModifiedDate"].split("T")[0]
         full_rescan = True
 
     
@@ -261,9 +261,9 @@ def run_check_leaked_passwords(dict_hash=None):
                     user_to_add_in_leaked_password_group.append(user)
             if anonymize_results:
                 if config.getboolean('common','check_privilegied_group'):
-                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash]),len(dict_hash[nthash]['privilegied_accounts']),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
+                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash[:5]][nthash[5:]]),len(dict_hash[nthash]['privilegied_accounts']),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
                 else:
-                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash]),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
+                    datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash[:5]][nthash[5:]]),', '.join(dict_hash[nthash]['anon_accounts'][:2]),f'and {len(dict_hash[nthash]["anon_accounts"][2:])} more'])
             else:
                 if config.getboolean('common','check_privilegied_group'):
                     datas.append([len(dict_hash[nthash]['anon_accounts']),str(dict_hash_status['hash_status'][nthash[:5]][nthash[5:]]),len(dict_hash[nthash]['privilegied_accounts']),', '.join(dict_hash[nthash]['accounts'][:2]),f'and {len(dict_hash[nthash]["accounts"][2:])} more'])
