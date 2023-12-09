@@ -5,3 +5,4 @@ requests
 configparser
 pycryptodomex
 json
+pandas
