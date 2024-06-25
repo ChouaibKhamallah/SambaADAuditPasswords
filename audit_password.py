@@ -133,7 +133,7 @@ def create_dict_hash():
         if str(users_basedn) in user['distinguishedName'][0].decode('utf-8'):
 
             passwordattr = 'unicodePwd'
-            password = samdb.get_default_basedn(),expression="(sAMAccountName=%s)" % str(user["sAMAccountName"]),scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr])[0]
+            password = samdb.search(samdb.get_default_basedn(),expression="(sAMAccountName=%s)" % str(user["sAMAccountName"]),scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr])[0]
             if not passwordattr in password:
                 continue
             hashnt = password[passwordattr][0].hex().upper()
