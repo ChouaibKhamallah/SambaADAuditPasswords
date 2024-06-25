@@ -35,7 +35,8 @@ apt-get install git python3-pip
 cd /tmp
 git clone https://github.com/ChouaibKhamallah/SambaADAuditPasswords.git
 mv SambaADAuditPasswords /opt/SambaADAuditPasswords
-pip3 install -r /opt/SambaADAuditPasswords/requirements.txt
+pip3 install -r /opt/SambaADAuditPasswords/pip_requirements.txt
+xargs apt -y install < /opt/SambaADAuditPasswords/apt_requirements.txt
 ```
 
 By default the script is run in dry_run mode, no group will be created or managed on your domain. The entire domain will be audited. If you want to adjust some parameters modify the conf.ini file. 
