@@ -2,6 +2,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+# 2024-06-25 
+
+## Changed
+
+- Remove GetPasswordCommand (broken in samba 4.20)
+
 # 2023-12-09
 
 ## Added
