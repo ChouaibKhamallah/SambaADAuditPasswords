@@ -1,8 +1,0 @@
-python3-colorama
-python3-termcolor
-python3-tabulate
-python3-requests
-python3-configparser
-python3-pycryptodomex
-python3-json
-python3-pandas
