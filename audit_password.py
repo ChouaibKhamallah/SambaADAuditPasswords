@@ -20,9 +20,11 @@ from samba.dcerpc.security import dom_sid
 from samba.ndr import ndr_pack, ndr_unpack
 from samba.param import LoadParm
 from samba.samdb import SamDB
-from samba.netcmd.user import GetPasswordCommand
-from Cryptodome import Random
 from datetime import datetime, timedelta
+try:
+    from Cryptodome import Random
+except:
+    from Crypto import Random
 
 configfile='/opt/SambaADAuditPasswords/conf.ini'
 config = configparser.ConfigParser()
@@ -35,8 +37,7 @@ lp = sambaopts.get_loadparm()
 creds = Credentials()
 creds.guess(lp)
 samdb = SamDB( session_info=system_session(),credentials=creds, lp=lp)
-testpawd = GetPasswordCommand()
-testpawd.lp = lp
+
 # SAMBA AD BASE CONNECTION
 
 ## CONF.INI PARAMETERS
@@ -131,9 +132,8 @@ def create_dict_hash():
 
         if str(users_basedn) in user['distinguishedName'][0].decode('utf-8'):
 
-            Random.atfork()
             passwordattr = 'unicodePwd'
-            password = testpawd.get_account_attributes(samdb,None,samdb.get_default_basedn(),filter="(sAMAccountName=%s)" % str(user["sAMAccountName"]) ,scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr],decrypt=False)
+            password = samdb.get_default_basedn(),expression="(sAMAccountName=%s)" % str(user["sAMAccountName"]),scope=ldb.SCOPE_SUBTREE,attrs=[passwordattr])[0]
             if not passwordattr in password:
                 continue
             hashnt = password[passwordattr][0].hex().upper()
